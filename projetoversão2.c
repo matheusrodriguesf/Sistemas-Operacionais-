@@ -23,9 +23,10 @@ int up (){
 
 
 int threadFunction( void* argument ){
-        int r = down();
+      
 	while(1){
-            if (r==0){
+		down();
+            if (SEM==0){
                 printf("Carros passando pela via:\n");
                 up();
             }
@@ -34,7 +35,7 @@ int threadFunction( void* argument ){
             }
     }
     return 0;
-    down();
+   
 }
 
 int threadFunction2( void* argument ){
