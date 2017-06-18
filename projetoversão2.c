@@ -1,96 +1,66 @@
-#define _GNU_SOURCE
-#include <stdlib.h>
-#include <malloc.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <sched.h>
 #include <stdio.h>
-#define FIBER_STACK 1024*64
-//#define SEM 1
-#define PEDESTRE 10
-#define CARRO 10
-int SEM = 1;
-int down (){
-    SEM = SEM -1;
-    return SEM;
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+#define N_PEDESTRES 10
+#define N_CARROS 10
+
+
+int turn=0;
+int controle=1;
+
+int dimi(void* argument){
+    turn=1;
+}
+int aut(void * argument){
+    turn=0;
 }
 
-int up (){
-    SEM = SEM +1;
-    return SEM;
+/*funcao dos carros*/
+void* funcaoCarros(void* args){
+while(turn!=0){
+    int ct = *(int*)args;
+    printf("Carro %d passando\n ",ct);
+    aut(&turn);
+    
+}
 }
 
-
-int threadFunction( void* argument ){
-      
-	while(1){
-		down();
-            if (SEM==0){
-                printf("Carros passando pela via:\n");
-                up();
-            }
-            else{
-                printf("Pedestres passando\n");
-            }
-    }
-    return 0;
-   
+/*funcao dos pedestres*/
+void* funcaoPedestres(void* args){
+while (turn!=1){
+        int ct = *(int*)args;
+        printf("pedestre %d passando\n",ct);
+        dimi(&turn);
+}    
 }
 
-int threadFunction2( void* argument ){
-    int id = * (int *) argument;
-    int result=up();
-    if (result== 0){
-        printf("Pedestre %d esperando para atravessar.\n",id);
-        up();
-        printf("Pedestre %d atravessou a rua\n",id);
-        down();
-        printf("Já atravessou a rua pedestre %d \n", id);
-    }
-    else{
-        printf("Pode atravessar rapidamente %d \n",id);
-        return 0;
-    }
-    down();
-}
-
-
+/*Metodo principal*/
 int main(){
-    void* stack;
-    pid_t pid;
-    pid_t pid2;
-    stack = malloc( FIBER_STACK );
-    if (stack == 0){
-        perror("malloc: could not allocate stack");
-        exit(1);
-    }
-    printf( "Creating child thread\n" );
-    pid = clone( &threadFunction, (char*) stack + FIBER_STACK,SIGCHLD | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM, 0 );
-    if ( pid == -1 ){
-        perror( "clone" );
-        exit(2);
-    }
-    pid = waitpid( pid, 0, 0 );
-    if (pid == -1){
-        perror( "waitpid" );
-        exit(3);
+    pthread_t threadCarros[N_CARROS];
+    pthread_t threadPedestres[N_PEDESTRES];
+    int i;
+
+    /*Variavel para identificado de cliente*/
+    int idPedestres[N_PEDESTRES];
+    /*Criação da thread do pedestre*/
+    
+    for(i=0; i < N_PEDESTRES;i++){
+        idPedestres[i] = i;
+        pthread_create(&threadPedestres[i],NULL,funcaoPedestres,&idPedestres[i]);
     }
 
-
-
-    printf( "Creating child 2 thread\n" );
-    pid2 = clone( &threadFunction2, (char*) stack + FIBER_STACK,SIGCHLD | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_VM, 0 );
-    if ( pid2 == -1 ){
-        perror( "clone" );
-        exit(2);
+    int idCarros[N_CARROS];
+    for(i=0; i < N_CARROS;i++){
+        idCarros[i] = i;
+        pthread_create(&threadCarros[i],NULL,funcaoCarros,&idCarros[i]);
     }
-    pid = waitpid( pid, 0, 0 );
-    if (pid == -1){
-        perror( "waitpid" );
-        exit(3);
-    }
-    free( stack );
-    printf( "Child thread returned and stack freed.\n" );
-    return 0;
- }
+    
+    for(i=0;i < N_PEDESTRES;i++){
+        pthread_join(threadPedestres[i],NULL);
+        pthread_join(threadCarros[i],NULL);
+    
+}
+   
+    
+}//fim do metodo principal.
