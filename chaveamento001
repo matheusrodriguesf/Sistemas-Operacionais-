@@ -1,51 +1,63 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include <unistd.h>
-#include <malloc.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <sched.h>
-
-#define FIBER_STACK 1024*64
+#define N_PEDESTRES 10
+#define N_CARROS 10
 
 
 int turn=0;
 int controle=1;
 
 int dimi(void* argument){
-turn=1;
+    turn=1;
 }
 int aut(void * argument){
-turn=0;
+    turn=0;
 }
 
-int threadCarro(void *argument){
-printf("Carros passam\n");
-aut(&turn);
-
+/*funcao dos carros*/
+void* funcaoCarros(void* args){
+    int ct = *(int*)args;
+    printf("Carro %d passando\n ",ct);
+    aut(&turn);
+    
 }
 
-
-int threadPedestre (void* argumento){
-
-while (turn!=1){
-printf("Pedestres atravessam\n");
-dimi(&turn);
-}
-}
+/*funcao dos pedestres*/
+void* funcaoPedestres(void* args){
+        int ct = *(int*)args;
+        printf("pedestre %d passando\n",ct);
+        dimi(&turn);
+    
 }
 
+/*Metodo principal*/
 int main(){
-void * stack;
-pid_t pid_c;
-pid_t pid_a;
-stack=malloc (FIBER_STACK);
-pid_c=clone (&threadCarro, (char*) stack + FIBER_STACK, SIGCHLD|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_VM,0);
-pid_c=waitpid(pid_c,0,0);
-pid_a =clone (&threadPedestre, (char*) stack + FIBER_STACK, SIGCHLD|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_VM,0);
-pid_a=waitpid(pid_a,0,0);
-free(stack);
-return 0;
+    pthread_t threadCarros[N_CARROS];
+    pthread_t threadPedestres[N_PEDESTRES];
+    int i;
+
+    /*Variavel para identificado de cliente*/
+    int idPedestres[N_PEDESTRES];
+    /*Criação da thread do pedestre*/
+    
+    for(i=0; i < N_PEDESTRES;i++){
+        idPedestres[i] = i;
+        pthread_create(&threadPedestres[i],NULL,funcaoPedestres,&idPedestres[i]);
+    }
+
+    int idCarros[N_CARROS];
+    for(i=0; i < N_CARROS;i++){
+        idCarros[i] = i;
+        pthread_create(&threadCarros[i],NULL,funcaoCarros,&idCarros[i]);
+    }
+    
+    for(i=0;i < N_PEDESTRES;i++){
+        pthread_join(threadPedestres[i],NULL);
+        pthread_join(threadCarros[i],NULL);
+    
 }
+   
+    
+}//fim do metodo principal.
